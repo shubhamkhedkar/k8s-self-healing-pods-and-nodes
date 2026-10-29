@@ -1,0 +1,7 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-healer-replace
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: node-healer-replace}
+subjects:
+  - {kind: ServiceAccount, name: node-healer, namespace: self-healing}

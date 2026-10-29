@@ -1,0 +1,19 @@
+# Local demo on kind: images are loaded with `kind load docker-image`, healer reacts fast.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - replace-binding.yaml
+patches:
+  - target: {kind: Deployment, name: node-healer}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - {name: DRY_RUN, value: "false"}           # kind nodes are disposable: really act
+          - {name: REPLACE_MODE, value: "delete-node"}
+          - {name: NOT_READY_THRESHOLD_SECONDS, value: "60"}
+          - {name: POLL_INTERVAL_SECONDS, value: "10"}
+          - {name: DRAIN_TIMEOUT_SECONDS, value: "120"}
+          - {name: MAX_UNHEALTHY_FRACTION, value: "0.5"}
+          - {name: COOLDOWN_SECONDS, value: "60"}

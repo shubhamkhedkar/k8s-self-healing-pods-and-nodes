@@ -1,0 +1,9 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: demo-app
+  namespace: self-healing
+spec:
+  minAvailable: 2   # node drains (voluntary evictions) may never leave fewer than 2 Ready pods
+  selector:
+    matchLabels: {app.kubernetes.io/name: demo-app}

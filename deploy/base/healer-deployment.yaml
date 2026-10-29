@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-healer
+  namespace: self-healing
+  labels: {app.kubernetes.io/name: node-healer}
+spec:
+  replicas: 1          # single active controller; no leader election needed
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: node-healer}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: node-healer}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+    spec:
+      serviceAccountName: node-healer
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: node-healer
+          image: node-healer:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: metrics, containerPort: 9102}
+          env:
+            - {name: DRY_RUN, value: "true"}                 # SAFE DEFAULT: log only
+            - {name: REPLACE_MODE, value: "none"}            # none | delete-node | aws-asg-terminate
+            - {name: NOT_READY_THRESHOLD_SECONDS, value: "300"}
+            - {name: POLL_INTERVAL_SECONDS, value: "30"}
+            - {name: DRAIN_TIMEOUT_SECONDS, value: "300"}
+            - {name: MAX_UNHEALTHY_FRACTION, value: "0.34"}
+            - {name: COOLDOWN_SECONDS, value: "600"}
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          livenessProbe:
+            tcpSocket: {port: metrics}
+            periodSeconds: 20

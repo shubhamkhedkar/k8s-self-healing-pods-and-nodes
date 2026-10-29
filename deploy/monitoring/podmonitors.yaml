@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: demo-app
+  namespace: self-healing
+  labels: {release: kube-prometheus-stack}
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: demo-app}
+  podMetricsEndpoints:
+    - {port: http, path: /metrics}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: node-healer
+  namespace: self-healing
+  labels: {release: kube-prometheus-stack}
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: node-healer}
+  podMetricsEndpoints:
+    - {port: metrics, path: /metrics}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: node-problem-detector
+  namespace: self-healing
+  labels: {release: kube-prometheus-stack}
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: node-problem-detector}
+  podMetricsEndpoints:
+    - {port: metrics, path: /metrics}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: self-healing
+  labels: {app.kubernetes.io/name: demo-app}
+spec:
+  selector: {app.kubernetes.io/name: demo-app}
+  ports:
+    - {name: http, port: 80, targetPort: http}

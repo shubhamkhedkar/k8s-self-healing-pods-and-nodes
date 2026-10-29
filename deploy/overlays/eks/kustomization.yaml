@@ -1,0 +1,33 @@
+# EKS: images come from ECR, the healer starts in DRY-RUN and terminates through the ASG using IRSA.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - replace-binding.yaml
+images:
+  - name: self-heal-demo
+    newName: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/self-heal-demo   # sed-replaced by `make eks-render`
+    newTag: latest
+  - name: node-healer
+    newName: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/node-healer
+    newTag: latest
+patches:
+  - target: {kind: ServiceAccount, name: node-healer}
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/self-healing-demo-node-healer
+  - target: {kind: Deployment, name: node-healer}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - {name: DRY_RUN, value: "true"}            # flip to "false" only after reading the logs
+          - {name: REPLACE_MODE, value: "aws-asg-terminate"}
+          - {name: AWS_REGION, value: ap-south-1}
+          - {name: NOT_READY_THRESHOLD_SECONDS, value: "300"}
+          - {name: POLL_INTERVAL_SECONDS, value: "30"}
+          - {name: DRAIN_TIMEOUT_SECONDS, value: "300"}
+          - {name: MAX_UNHEALTHY_FRACTION, value: "0.34"}
+          - {name: COOLDOWN_SECONDS, value: "900"}

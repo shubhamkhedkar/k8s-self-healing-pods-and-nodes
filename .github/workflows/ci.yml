@@ -1,0 +1,58 @@
+name: ci
+# NOTE: GitHub Actions is intentionally DISABLED for this repository (Settings -> Actions).
+# This workflow documents the checks that `make validate` runs locally; re-enable Actions to use it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install ruff yamllint
+      - run: ruff check app node-healer
+      - run: yamllint -c .yamllint.yaml deploy kind .github
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pytest -r app/requirements.txt -r node-healer/requirements.txt
+      - run: pytest -q
+
+  kubeconform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+      - name: validate rendered manifests
+        run: |
+          for o in deploy/base deploy/overlays/kind deploy/overlays/eks; do
+            kubectl kustomize "$o" | kubeconform -strict -summary -ignore-missing-schemas -kubernetes-version 1.30.0
+          done
+          kubectl kustomize deploy/monitoring | kubeconform -strict -summary -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: {terraform_version: "1.9.8"}
+      - working-directory: terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
